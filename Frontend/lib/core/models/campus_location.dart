@@ -11,6 +11,8 @@ class CampusLocation {
   final int floor;
   final String? building;
   final String? description;
+  final double? latitude;
+  final double? longitude;
 
   const CampusLocation({
     required this.id,
@@ -19,7 +21,15 @@ class CampusLocation {
     this.floor = 0,
     this.building,
     this.description,
+    this.latitude,
+    this.longitude,
   });
+
+  bool get hasCoordinates =>
+      latitude != null &&
+      longitude != null &&
+      latitude!.abs() > 0.01 &&
+      longitude!.abs() > 0.01;
 
   /// Maps Navigation Worker `mapLocation` JSON → app model.
   factory CampusLocation.fromWorkerJson(Map<String, dynamic> json) {
@@ -30,6 +40,8 @@ class CampusLocation {
       floor: (json['floor'] as num?)?.toInt() ?? 0,
       building: json['code'] as String?,
       description: json['description'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
   }
 }

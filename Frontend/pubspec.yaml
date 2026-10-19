@@ -38,11 +38,14 @@ dependencies:
   http: ^1.5.0
   shared_preferences: ^2.2.2
   qr_flutter: ^4.1.0
-  # Step 2+ integrations (kept for later wiring):
-  # mobile_scanner: ^7.0.1
-  # google_maps_flutter: ^2.12.1
-  # firebase_core / firebase_database — parking IoT
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  mbtiles: ^0.4.2
+  sqlite3_flutter_libs: ^0.5.28
+  path_provider: ^2.1.5
+  path: ^1.9.1
   cupertino_icons: ^1.0.8
+
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +70,7 @@ flutter:
   uses-material-design: true
   assets:
       - assets/images/cityu_logo.png
+      - assets/maps/cityu_abisamra.mbtiles
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -184,6 +184,7 @@ function mapLocation(row) {
 
 function inferType(code) {
   const c = String(code || "").toUpperCase();
+  if (c.startsWith("WP_")) return "waypoint";
   if (c === "CITYU") return "campus";
   if (c === "ADMIN") return "admin";
   if (c === "LIB") return "library";
