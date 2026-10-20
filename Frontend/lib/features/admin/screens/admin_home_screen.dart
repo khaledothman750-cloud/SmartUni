@@ -55,14 +55,15 @@ class AdminHomeScreen extends StatelessWidget {
               const DesignModeBanner(),
               const CampusHeroCard(
                 title: 'Module management',
-                subtitle: 'Preview admin views for Navigation, Attendance, and Parking.',
+                subtitle: 'Oversee live Navigation, Attendance, and Parking backends.',
                 icon: Icons.dashboard_customize_outlined,
                 gradient: [AppColors.navy, AppColors.adminAccent],
               ),
               const SizedBox(height: 28),
               const SectionHeader(
                 title: 'DB Access',
-                subtitle: 'Each module opens a design screen. Live data comes in later steps.',
+                subtitle:
+                    'Each module opens its admin view with live Cloudflare or Firebase data.',
               ),
               const SizedBox(height: 14),
               ServiceCard(

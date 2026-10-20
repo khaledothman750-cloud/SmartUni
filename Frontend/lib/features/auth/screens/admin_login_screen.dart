@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 
 import '../../../app/router/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/design_mode_banner.dart';
@@ -148,10 +147,10 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                         : const Text('Sign In as Admin'),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'D1 account: ${AppConstants.demoAdminUsername} / ${AppConstants.demoAdminPassword}',
+                  const Text(
+                    'Use an admin account from the Cloudflare D1 users table.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
                     ),

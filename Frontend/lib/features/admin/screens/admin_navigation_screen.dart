@@ -27,7 +27,8 @@ class AdminNavigationScreen extends StatelessWidget {
             const DesignModeBanner(),
             const SectionHeader(
               title: 'Locations module',
-              subtitle: 'Cloudflare Worker + locations table (ready on backend).',
+              subtitle:
+                  'Live status for the Navigation Worker. Buildings and edges are managed in D1.',
             ),
             const SizedBox(height: 14),
             _MetaCard(
@@ -38,7 +39,7 @@ class AdminNavigationScreen extends StatelessWidget {
             const SizedBox(height: 10),
             const _MetaCard(
               title: 'API key',
-              value: 'Loaded from secrets.dart in Step 2 (not stored in repo)',
+              value: 'Loaded from secrets.dart (gitignored — not in the repo)',
               icon: Icons.key_outlined,
             ),
             const SizedBox(height: 10),
@@ -66,19 +67,7 @@ class AdminNavigationScreen extends StatelessWidget {
                 );
               },
               icon: const Icon(Icons.open_in_new_rounded),
-              label: const Text('Open navigation preview'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Add / edit location actions come in Step 2.'),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.add_location_alt_outlined),
-              label: const Text('Add location (soon)'),
+              label: const Text('Open campus navigation'),
             ),
           ],
         ),

@@ -7,7 +7,7 @@
 import '../../core/models/campus_location.dart';
 import '../../core/models/parking_slot.dart';
 
-/// Design-time sample data. Replaced by Cloudflare / Firebase in later steps.
+/// Fallback sample data when AppConfig live API flags are off.
 class MockData {
   MockData._();
 

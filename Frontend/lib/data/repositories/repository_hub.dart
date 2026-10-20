@@ -13,7 +13,7 @@ import 'firebase_parking_repository.dart';
 import 'navigation_repository.dart';
 import 'parking_repository.dart';
 
-/// Central place to swap mock → real implementations.
+/// Picks live Cloudflare/Firebase repositories (or mocks if flags are off).
 class RepositoryHub {
   RepositoryHub._({
     required this.auth,

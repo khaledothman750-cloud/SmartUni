@@ -8,9 +8,9 @@ class AppConstants {
   AppConstants._();
 
   static const String designModeHint =
-      'Design preview — actions will be connected in the next step.';
+      'Design mode — Cloudflare/Firebase live APIs are turned off in AppConfig.';
 
-  /// Mock credentials for UI walkthrough only (not production).
+  /// Hint credentials shown on login screens (must match D1 `users` demo rows).
   static const String demoStudentId = 'student';
   static const String demoStudentPassword = 'student';
   static const String demoAdminUsername = 'admin';

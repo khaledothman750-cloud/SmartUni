@@ -173,8 +173,8 @@ class _StudentQrScreenState extends State<StudentQrScreen> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Flow: student QR → classroom camera app → Cloudflare attendance DB. '
-                        'Backend wiring comes in a later step.',
+                        'Flow: show this QR → Classroom Scanner reads it → '
+                        'Attendance Worker stores the record in Cloudflare D1.',
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 12,

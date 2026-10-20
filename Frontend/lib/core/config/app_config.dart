@@ -7,7 +7,7 @@
 /// Non-secret application configuration.
 ///
 /// Secrets (API keys) belong in `secrets.dart` (gitignored).
-/// Copy from `secrets.example.dart` when you start Step 2 integrations.
+/// Copy from `secrets.example.dart` for local setup.
 class AppConfig {
   AppConfig._();
 
@@ -41,10 +41,10 @@ class AppConfig {
   /// When true, auth + navigation + attendance use Cloudflare Workers (not mocks).
   static const bool useCloudflareApis = true;
 
-  /// Step 1 design banner. Off for Step 2 live Cloudflare wiring.
+  /// When true, shows the yellow design-mode banner (keep false for live demos).
   static const bool designMode = false;
 
-  /// How often the student attendance QR rotates in the UI (design preview).
+  /// How often the student attendance QR rotates in the UI.
   static const Duration studentQrRefreshInterval = Duration(seconds: 20);
 
   /// How often the parking screen re-reads Firebase (ESP publishes ~every 10s).

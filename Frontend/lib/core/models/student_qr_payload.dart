@@ -5,7 +5,7 @@
 /// Date                        : 14 October 2026
 /// Project                     : SmartUni - Smart University CityU
 /// Payload encoded inside the student's rotating attendance QR.
-/// Classroom scanner app will read this in a later step.
+/// Read by the ClassroomScanner app and posted to the Attendance Worker.
 class StudentQrPayload {
   final String studentId;
   final String studentName;
@@ -21,7 +21,7 @@ class StudentQrPayload {
     required this.expiresAt,
   });
 
-  /// Compact string shown in QR (design format; will match backend later).
+  /// Compact string shown in the QR (parsed by ClassroomScanner).
   String get encoded =>
       'SMARTUNI|SID:$studentId|TOK:$token|EXP:${expiresAt.millisecondsSinceEpoch}';
 

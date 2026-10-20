@@ -9,8 +9,7 @@ import 'package:flutter/foundation.dart';
 import '../enums/user_role.dart';
 import '../models/app_user.dart';
 
-/// In-memory session for Step 1 (design preview).
-/// Later: persist with SharedPreferences / secure storage + real auth API.
+/// In-memory session after Cloudflare login (cleared on logout).
 class SessionController extends ChangeNotifier {
   SessionController._();
 

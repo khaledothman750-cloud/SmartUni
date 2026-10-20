@@ -8,7 +8,7 @@ import '../../core/models/campus_location.dart';
 import '../mock/mock_data.dart';
 
 /// Navigation data access.
-/// Step 1: mock. Step 2: Cloudflare Worker + locations table.
+/// Live: Cloudflare Worker + locations table. Fallback: [MockNavigationRepository].
 abstract class NavigationRepository {
   Future<List<CampusLocation>> fetchLocations();
 
