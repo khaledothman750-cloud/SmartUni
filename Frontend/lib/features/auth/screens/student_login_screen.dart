@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../../app/router/app_routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/session/saved_login_store.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/design_mode_banner.dart';
@@ -27,6 +28,25 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
   final _passwordController = TextEditingController();
   bool _hidePassword = true;
   bool _loading = false;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSavedLogin();
+  }
+
+  Future<void> _restoreSavedLogin() async {
+    final saved = await SavedLoginStore.loadStudent();
+    if (!mounted) return;
+    setState(() {
+      _rememberMe = saved.remember;
+      if (saved.remember) {
+        _idController.text = saved.id;
+        _passwordController.text = saved.password;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -40,6 +60,11 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
     try {
       final user = await RepositoryHub.instance.auth.loginStudent(
         universityId: _idController.text,
+        password: _passwordController.text,
+      );
+      await SavedLoginStore.saveStudent(
+        remember: _rememberMe,
+        id: _idController.text,
         password: _passwordController.text,
       );
       SessionController.instance.setUser(user);
@@ -123,7 +148,25 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    value: _rememberMe,
+                    onChanged: _loading
+                        ? null
+                        : (v) => setState(() => _rememberMe = v ?? false),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: const Text(
+                      'Remember me on this device',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _loading ? null : _login,
                     child: _loading
