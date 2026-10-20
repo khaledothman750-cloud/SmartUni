@@ -57,6 +57,22 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Generates platform launcher icons from assets/images/smartuni_app_icon.png
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+  windows:
+    generate: true
+  macos:
+    generate: true
+  image_path: assets/images/smartuni_app_icon.png
+  adaptive_icon_background: "#0B3A5C"
+  adaptive_icon_foreground: assets/images/smartuni_app_icon.png
+  remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -70,6 +86,7 @@ flutter:
   uses-material-design: true
   assets:
       - assets/images/cityu_logo.png
+      - assets/images/smartuni_app_icon.png
       - assets/maps/cityu_abisamra.mbtiles
 
   # To add assets to your application, add an assets section, like this:
