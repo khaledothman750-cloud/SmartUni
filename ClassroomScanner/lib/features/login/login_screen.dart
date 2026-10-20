@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../core/attribution.dart';
 import '../../core/config/app_config.dart';
+import '../../core/saved_login_store.dart';
 import '../../data/scanner_api.dart';
 import '../../data/worker_api_client.dart';
 import '../sessions/session_list_screen.dart';
@@ -27,6 +28,25 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   bool _obscure = true;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSavedLogin();
+  }
+
+  Future<void> _restoreSavedLogin() async {
+    final saved = await SavedLoginStore.load();
+    if (!mounted) return;
+    setState(() {
+      _rememberMe = saved.remember;
+      if (saved.remember) {
+        _userController.text = saved.username;
+        _passwordController.text = saved.password;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -39,6 +59,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     try {
       final user = await widget.api.loginInstructor(
+        username: _userController.text,
+        password: _passwordController.text,
+      );
+      await SavedLoginStore.save(
+        remember: _rememberMe,
         username: _userController.text,
         password: _passwordController.text,
       );
@@ -115,7 +140,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 4),
+                CheckboxListTile(
+                  value: _rememberMe,
+                  onChanged: _loading
+                      ? null
+                      : (v) => setState(() => _rememberMe = v ?? false),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  activeColor: ScannerColors.accent,
+                  title: const Text(
+                    'Remember me on this device',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: _loading ? null : _login,
                   child: _loading
@@ -131,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Demo: admin / admin',
+                  'Use an admin account from the Cloudflare D1 users table.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Colors.black54),
                 ),
