@@ -13,13 +13,49 @@ import '../../core/models/student_qr_payload.dart';
 import '../remote/worker_api_client.dart';
 
 /// Attendance data access.
-/// QR is generated on-device; sessions/records come from the Attendance Worker.
+/// QR is generated on-device; sessions/records/roster come from the Attendance Worker.
 abstract class AttendanceRepository {
   StudentQrPayload generateStudentQr(AppUser student);
 
   Future<List<Map<String, dynamic>>> fetchSessions({String? courseId});
 
   Future<List<Map<String, dynamic>>> fetchRecords({required String sessionId});
+
+  /// Enrolled students + Present/Absent for a session.
+  Future<AttendanceSheet> fetchSheet({required String sessionId});
+
+  Future<List<Map<String, dynamic>>> fetchEnrollments({
+    required String courseId,
+  });
+
+  Future<Map<String, dynamic>> addEnrollment({
+    required String courseId,
+    required String studentId,
+    required String studentName,
+  });
+
+  Future<void> removeEnrollment({
+    required String courseId,
+    required String studentId,
+  });
+}
+
+class AttendanceSheet {
+  final String sessionId;
+  final String courseId;
+  final int enrolled;
+  final int present;
+  final int absent;
+  final List<Map<String, dynamic>> rows;
+
+  const AttendanceSheet({
+    required this.sessionId,
+    required this.courseId,
+    required this.enrolled,
+    required this.present,
+    required this.absent,
+    required this.rows,
+  });
 }
 
 class MockAttendanceRepository implements AttendanceRepository {
@@ -57,9 +93,47 @@ class MockAttendanceRepository implements AttendanceRepository {
   }) async {
     return const [];
   }
+
+  @override
+  Future<AttendanceSheet> fetchSheet({required String sessionId}) async {
+    return AttendanceSheet(
+      sessionId: sessionId,
+      courseId: '',
+      enrolled: 0,
+      present: 0,
+      absent: 0,
+      rows: const [],
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchEnrollments({
+    required String courseId,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<Map<String, dynamic>> addEnrollment({
+    required String courseId,
+    required String studentId,
+    required String studentName,
+  }) async {
+    return {
+      'course_id': courseId,
+      'student_id': studentId,
+      'student_name': studentName,
+    };
+  }
+
+  @override
+  Future<void> removeEnrollment({
+    required String courseId,
+    required String studentId,
+  }) async {}
 }
 
-/// Live attendance sessions/records + local rotating QR.
+/// Live attendance sessions/records/roster + local rotating QR.
 class CloudflareAttendanceRepository implements AttendanceRepository {
   CloudflareAttendanceRepository({
     WorkerApiClient? client,
@@ -100,6 +174,64 @@ class CloudflareAttendanceRepository implements AttendanceRepository {
       query: {'session_id': sessionId},
     );
     return _asMapList(json['data']);
+  }
+
+  @override
+  Future<AttendanceSheet> fetchSheet({required String sessionId}) async {
+    final json = await _client.get(
+      '/api/attendance/sheet',
+      query: {'session_id': sessionId},
+    );
+    final summary = json['summary'];
+    final map = summary is Map
+        ? Map<String, dynamic>.from(summary)
+        : <String, dynamic>{};
+    return AttendanceSheet(
+      sessionId: json['session_id']?.toString() ?? sessionId,
+      courseId: json['course_id']?.toString() ?? '',
+      enrolled: (map['enrolled'] as num?)?.toInt() ?? 0,
+      present: (map['present'] as num?)?.toInt() ?? 0,
+      absent: (map['absent'] as num?)?.toInt() ?? 0,
+      rows: _asMapList(json['data']),
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchEnrollments({
+    required String courseId,
+  }) async {
+    final id = Uri.encodeComponent(courseId.trim().toUpperCase());
+    final json = await _client.get('/api/courses/$id/enrollments');
+    return _asMapList(json['data']);
+  }
+
+  @override
+  Future<Map<String, dynamic>> addEnrollment({
+    required String courseId,
+    required String studentId,
+    required String studentName,
+  }) async {
+    final id = Uri.encodeComponent(courseId.trim().toUpperCase());
+    final json = await _client.post(
+      '/api/courses/$id/enrollments',
+      body: {
+        'student_id': studentId.trim(),
+        'student_name': studentName.trim(),
+      },
+    );
+    final data = json['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return {};
+  }
+
+  @override
+  Future<void> removeEnrollment({
+    required String courseId,
+    required String studentId,
+  }) async {
+    final cid = Uri.encodeComponent(courseId.trim().toUpperCase());
+    final sid = Uri.encodeComponent(studentId.trim());
+    await _client.delete('/api/courses/$cid/enrollments/$sid');
   }
 
   List<Map<String, dynamic>> _asMapList(Object? raw) {

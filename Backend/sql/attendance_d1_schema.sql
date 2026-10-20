@@ -43,6 +43,20 @@ CREATE TABLE IF NOT EXISTS attendance_records (
 CREATE INDEX IF NOT EXISTS idx_att_records_session ON attendance_records(session_id);
 CREATE INDEX IF NOT EXISTS idx_att_records_student ON attendance_records(student_id);
 
+-- Class roster per course (who should attend). Used for Absent vs Present sheet.
+CREATE TABLE IF NOT EXISTS course_enrollments (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  course_id     TEXT NOT NULL,
+  student_id    TEXT NOT NULL,
+  student_name  TEXT NOT NULL,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (course_id, student_id),
+  FOREIGN KEY (course_id) REFERENCES courses(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_enroll_course ON course_enrollments(course_id);
+CREATE INDEX IF NOT EXISTS idx_enroll_student ON course_enrollments(student_id);
+
 INSERT INTO courses (id, name, instructor_id) VALUES
   ('NET301', 'Smart Networks', 'INS001'),
   ('CSE210', 'Programming II', 'INS002');

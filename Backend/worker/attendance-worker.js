@@ -17,7 +17,7 @@
  * (because you bound DB → smart-university-db on this Worker)
  *
  * Tables used (lowercase):
- *   courses, attendance_sessions, attendance_records
+ *   courses, course_enrollments, attendance_sessions, attendance_records
  */
 
 export default {
@@ -55,9 +55,13 @@ export default {
           endpoints: [
             "GET /api/courses",
             "POST /api/courses",
+            "GET /api/courses/:id/enrollments",
+            "POST /api/courses/:id/enrollments",
+            "DELETE /api/courses/:id/enrollments/:studentId",
             "GET /api/attendance/sessions",
             "POST /api/attendance/sessions",
             "GET /api/attendance/records?session_id=",
+            "GET /api/attendance/sheet?session_id=",
             "POST /api/attendance/scan",
             "PUT /api/attendance/records/:id",
             "DELETE /api/attendance/records/:id",
@@ -73,6 +77,37 @@ export default {
       if (method === "POST" && path === "/api/courses") {
         const body = await readJson(request);
         return cors(await createCourse(env.DB, body));
+      }
+
+      // -------- Course enrollments (class roster) --------
+      let enrollListMatch = path.match(/^\/api\/courses\/([^/]+)\/enrollments$/);
+      if (method === "GET" && enrollListMatch) {
+        return cors(
+          await listEnrollments(env.DB, decodeURIComponent(enrollListMatch[1]))
+        );
+      }
+      if (method === "POST" && enrollListMatch) {
+        const body = await readJson(request);
+        return cors(
+          await addEnrollment(
+            env.DB,
+            decodeURIComponent(enrollListMatch[1]),
+            body
+          )
+        );
+      }
+
+      let enrollOneMatch = path.match(
+        /^\/api\/courses\/([^/]+)\/enrollments\/([^/]+)$/
+      );
+      if (method === "DELETE" && enrollOneMatch) {
+        return cors(
+          await removeEnrollment(
+            env.DB,
+            decodeURIComponent(enrollOneMatch[1]),
+            decodeURIComponent(enrollOneMatch[2])
+          )
+        );
       }
 
       // -------- Sessions --------
@@ -102,6 +137,12 @@ export default {
       if (method === "GET" && path === "/api/attendance/records") {
         const sessionId = url.searchParams.get("session_id");
         return cors(await listRecords(env.DB, sessionId));
+      }
+
+      // Roster + present/absent for a session (needs course_enrollments)
+      if (method === "GET" && path === "/api/attendance/sheet") {
+        const sessionId = url.searchParams.get("session_id");
+        return cors(await attendanceSheet(env.DB, sessionId));
       }
 
       if (method === "POST" && path === "/api/attendance/records") {
@@ -246,6 +287,212 @@ async function createCourse(db, body) {
 
   const row = await db.prepare("SELECT * FROM courses WHERE id = ?").bind(id).first();
   return json({ success: true, data: row }, 201);
+}
+
+// =============================================================================
+// Course enrollments (who belongs to the class)
+// =============================================================================
+
+async function listEnrollments(db, courseId) {
+  const id = String(courseId || "").trim().toUpperCase();
+  if (!id) {
+    return json({ success: false, error: "course id is required" }, 400);
+  }
+
+  const course = await db
+    .prepare("SELECT id FROM courses WHERE id = ?")
+    .bind(id)
+    .first();
+  if (!course) {
+    return json({ success: false, error: "Course not found" }, 404);
+  }
+
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM course_enrollments
+       WHERE course_id = ?
+       ORDER BY student_name ASC`
+    )
+    .bind(id)
+    .all();
+
+  return json({ success: true, course_id: id, data: results || [] });
+}
+
+async function addEnrollment(db, courseId, body) {
+  const id = String(courseId || "").trim().toUpperCase();
+  const studentId = String(body?.student_id || "").trim();
+  const studentName = String(body?.student_name || "").trim();
+
+  if (!id || !studentId || !studentName) {
+    return json(
+      { success: false, error: "course id, student_id, student_name are required" },
+      400
+    );
+  }
+
+  const course = await db
+    .prepare("SELECT id FROM courses WHERE id = ?")
+    .bind(id)
+    .first();
+  if (!course) {
+    return json({ success: false, error: "Course not found" }, 404);
+  }
+
+  try {
+    await db
+      .prepare(
+        `INSERT INTO course_enrollments (course_id, student_id, student_name, created_at)
+         VALUES (?, ?, ?, ?)`
+      )
+      .bind(id, studentId, studentName, nowIso())
+      .run();
+  } catch (e) {
+    if (String(e.message || e).includes("UNIQUE")) {
+      return json(
+        { success: false, error: "Student already enrolled in this course" },
+        409
+      );
+    }
+    throw e;
+  }
+
+  const row = await db
+    .prepare(
+      `SELECT * FROM course_enrollments
+       WHERE course_id = ? AND student_id = ?`
+    )
+    .bind(id, studentId)
+    .first();
+
+  return json({ success: true, data: row }, 201);
+}
+
+async function removeEnrollment(db, courseId, studentId) {
+  const id = String(courseId || "").trim().toUpperCase();
+  const sid = String(studentId || "").trim();
+  if (!id || !sid) {
+    return json(
+      { success: false, error: "course id and student_id are required" },
+      400
+    );
+  }
+
+  const existing = await db
+    .prepare(
+      `SELECT * FROM course_enrollments
+       WHERE course_id = ? AND student_id = ?`
+    )
+    .bind(id, sid)
+    .first();
+  if (!existing) {
+    return json({ success: false, error: "Enrollment not found" }, 404);
+  }
+
+  await db
+    .prepare(
+      `DELETE FROM course_enrollments WHERE course_id = ? AND student_id = ?`
+    )
+    .bind(id, sid)
+    .run();
+
+  return json({ success: true, message: `Removed ${sid} from ${id}` });
+}
+
+/**
+ * Merges course roster with scan records for one session.
+ * Present = scanned; Absent = enrolled but not scanned.
+ */
+async function attendanceSheet(db, sessionId) {
+  if (!sessionId) {
+    return json(
+      { success: false, error: "Query param session_id is required" },
+      400
+    );
+  }
+
+  const session = await db
+    .prepare("SELECT * FROM attendance_sessions WHERE id = ?")
+    .bind(sessionId)
+    .first();
+  if (!session) {
+    return json({ success: false, error: "Session not found" }, 404);
+  }
+
+  const courseId = session.course_id;
+  const { results: enrolled } = await db
+    .prepare(
+      `SELECT student_id, student_name FROM course_enrollments
+       WHERE course_id = ?
+       ORDER BY student_name ASC`
+    )
+    .bind(courseId)
+    .all();
+
+  const { results: records } = await db
+    .prepare(
+      `SELECT student_id, student_name, status, scanned_at, qr_token, device_id, id
+       FROM attendance_records WHERE session_id = ?`
+    )
+    .bind(sessionId)
+    .all();
+
+  const byId = new Map();
+  for (const r of records || []) {
+    byId.set(String(r.student_id), r);
+  }
+
+  const sheet = (enrolled || []).map((e) => {
+    const hit = byId.get(String(e.student_id));
+    const present =
+      hit && String(hit.status || "").toLowerCase() === "present";
+    return {
+      student_id: e.student_id,
+      student_name: e.student_name,
+      status: present ? "Present" : "Absent",
+      scanned_at: present ? hit.scanned_at ?? null : null,
+      record_id: hit?.id ?? null,
+      enrolled: true,
+    };
+  });
+
+  // Scans for students not on the roster (still show them)
+  for (const r of records || []) {
+    const onRoster = (enrolled || []).some(
+      (e) => String(e.student_id) === String(r.student_id)
+    );
+    if (onRoster) continue;
+    sheet.push({
+      student_id: r.student_id,
+      student_name: r.student_name,
+      status: r.status,
+      scanned_at: r.scanned_at,
+      record_id: r.id,
+      enrolled: false,
+    });
+  }
+
+  sheet.sort((a, b) => {
+    const ap = a.status === "Present" ? 0 : 1;
+    const bp = b.status === "Present" ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    return String(a.student_name).localeCompare(String(b.student_name));
+  });
+
+  const presentCount = sheet.filter((s) => s.status === "Present").length;
+  const absentCount = sheet.filter((s) => s.status === "Absent").length;
+
+  return json({
+    success: true,
+    session_id: sessionId,
+    course_id: courseId,
+    summary: {
+      enrolled: (enrolled || []).length,
+      present: presentCount,
+      absent: absentCount,
+    },
+    data: sheet,
+  });
 }
 
 // =============================================================================
@@ -592,13 +839,21 @@ async function scanAttendance(db, body) {
   }
 
   if (!studentName) {
+    const enrolledName = await db
+      .prepare(
+        `SELECT student_name FROM course_enrollments
+         WHERE course_id = ? AND student_id = ?`
+      )
+      .bind(session.course_id, studentId)
+      .first();
     const existingName = await db
       .prepare(
         "SELECT student_name FROM attendance_records WHERE session_id = ? AND student_id = ?"
       )
       .bind(sessionId, studentId)
       .first();
-    studentName = existingName?.student_name || studentId;
+    studentName =
+      enrolledName?.student_name || existingName?.student_name || studentId;
   }
 
   return upsertRecord(db, {

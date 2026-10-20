@@ -10,6 +10,7 @@ import '../../features/admin/screens/admin_attendance_screen.dart';
 import '../../features/admin/screens/admin_home_screen.dart';
 import '../../features/admin/screens/admin_navigation_screen.dart';
 import '../../features/admin/screens/admin_parking_screen.dart';
+import '../../features/admin/screens/admin_users_screen.dart';
 import '../../features/attendance/screens/student_qr_screen.dart';
 import '../../features/auth/screens/admin_login_screen.dart';
 import '../../features/auth/screens/student_login_screen.dart';
@@ -52,6 +53,8 @@ class AppRouter {
         return _page(const AdminAttendanceScreen());
       case AppRoutes.adminParking:
         return _page(const AdminParkingScreen());
+      case AppRoutes.adminUsers:
+        return _page(const AdminUsersScreen());
       default:
         return _page(const WelcomeScreen());
     }

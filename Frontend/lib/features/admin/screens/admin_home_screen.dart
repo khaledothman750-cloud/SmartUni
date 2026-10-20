@@ -67,6 +67,15 @@ class AdminHomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               ServiceCard(
+                title: 'Users',
+                subtitle: 'Add or remove student and admin accounts (D1 users).',
+                icon: Icons.manage_accounts_outlined,
+                accent: AppColors.adminAccent,
+                tag: 'CLOUDFLARE',
+                onTap: () => Navigator.pushNamed(context, AppRoutes.adminUsers),
+              ),
+              const SizedBox(height: 12),
+              ServiceCard(
                 title: 'Navigation',
                 subtitle: 'Locations table (Cloudflare Worker).',
                 icon: Icons.map_outlined,
