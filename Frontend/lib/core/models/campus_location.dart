@@ -31,6 +31,14 @@ class CampusLocation {
       latitude!.abs() > 0.01 &&
       longitude!.abs() > 0.01;
 
+  /// Internal graph nodes (WP_*) — hide from directory / From–To pickers.
+  bool get isWaypoint {
+    if (type.toLowerCase() == 'waypoint') return true;
+    final code = (building ?? '').toUpperCase();
+    if (code.startsWith('WP_')) return true;
+    return name.toLowerCase().startsWith('path');
+  }
+
   /// Maps Navigation Worker `mapLocation` JSON → app model.
   factory CampusLocation.fromWorkerJson(Map<String, dynamic> json) {
     return CampusLocation(

@@ -89,7 +89,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   /// Buildings only — path waypoints stay in the graph for drawing routes.
   List<CampusLocation> get _pickable {
-    return _locations.where((l) => l.type.toLowerCase() != 'waypoint').toList();
+    return _locations.where((l) => !l.isWaypoint).toList();
   }
 
   List<CampusLocation> get _filtered {
@@ -395,7 +395,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                       const SizedBox(height: 22),
                       const SectionHeader(
                         title: 'Campus directory',
-                        subtitle: 'Locations loaded from the Navigation Worker.',
+                        subtitle: 'Buildings and places (path waypoints hidden).',
                       ),
                       const SizedBox(height: 10),
                       ..._filtered.map(
