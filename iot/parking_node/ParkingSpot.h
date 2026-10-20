@@ -9,6 +9,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <time.h>
 #include <Firebase_ESP_Client.h>
 #include "Config.h"
 
@@ -41,6 +42,11 @@ class ParkingSpot {
     json.set("status", status);
     if (distanceCm >= 0) {
       json.set("distance_cm", distanceCm);
+    }
+    // Unix seconds (NTP). Flutter uses this to detect ESP online vs stale.
+    const time_t nowSec = time(nullptr);
+    if (nowSec > 1700000000) {
+      json.set("updated_at", (unsigned long)nowSec);
     }
     json.set("timestamp", String(millis()));
 

@@ -49,4 +49,7 @@ class AppConfig {
 
   /// How often the parking screen re-reads Firebase (ESP publishes ~every 10s).
   static const Duration parkingRefreshInterval = Duration(seconds: 5);
+
+  /// ESP is "offline" if no bay `updated_at` is newer than this (≈ 3–4 publish cycles).
+  static const Duration parkingEspStaleAfter = Duration(seconds: 45);
 }

@@ -32,9 +32,12 @@ Each node JSON:
   "label": "Front",
   "status": "occupied",
   "distance_cm": 42.5,
+  "updated_at": 1729420800,
   "timestamp": "123456"
 }
 ```
+
+`updated_at` is Unix time (NTP). The Flutter parking screen treats the ESP as **online** if any bay was updated within ~45s; otherwise it shows **offline** and last-known status.
 
 ## Setup
 

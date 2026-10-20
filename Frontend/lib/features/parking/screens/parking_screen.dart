@@ -123,27 +123,10 @@ class _ParkingScreenState extends State<ParkingScreen> {
                   const SectionHeader(
                     title: 'Campus parking',
                     subtitle:
-                        'Live bay status from ESP32 sensors via Firebase RTDB.',
+                        'Bay status from Firebase. Banner shows if the ESP32 is actively publishing.',
                   ),
                   const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFED7AA)),
-                    ),
-                    child: Text(
-                      AppConfig.parkingUsesFirebase
-                          ? 'Live: Firebase → ${AppConfig.firebaseParkingPath}'
-                          : 'Backend target: Cloudflare',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF9A3412),
-                      ),
-                    ),
-                  ),
+                  _EspStatusBanner(summary: summary),
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -207,6 +190,103 @@ class _ParkingScreenState extends State<ParkingScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _EspStatusBanner extends StatelessWidget {
+  final ParkingSummary summary;
+
+  const _EspStatusBanner({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!AppConfig.parkingUsesFirebase) {
+      return _banner(
+        text: 'Backend target: Cloudflare',
+        bg: const Color(0xFFFFF7ED),
+        border: const Color(0xFFFED7AA),
+        fg: const Color(0xFF9A3412),
+        icon: Icons.cloud_outlined,
+      );
+    }
+
+    final online = summary.isEspOnline(
+      staleAfter: AppConfig.parkingEspStaleAfter,
+    );
+    final last = summary.lastEspUpdate;
+    final age = last == null
+        ? null
+        : DateTime.now().toUtc().difference(last.toUtc());
+
+    if (online) {
+      final ago = age == null ? '' : ' · updated ${_formatAge(age)} ago';
+      return _banner(
+        text: 'ESP32 online$ago',
+        bg: const Color(0xFFECFDF5),
+        border: const Color(0xFFA7F3D0),
+        fg: const Color(0xFF065F46),
+        icon: Icons.sensors,
+      );
+    }
+
+    if (last == null) {
+      return _banner(
+        text: 'ESP32 offline — showing last known status (no fresh sensor data)',
+        bg: const Color(0xFFFFF7ED),
+        border: const Color(0xFFFED7AA),
+        fg: const Color(0xFF9A3412),
+        icon: Icons.sensors_off,
+      );
+    }
+
+    return _banner(
+      text:
+          'ESP32 offline — last update ${_formatAge(age!)} ago (cached in Firebase)',
+      bg: const Color(0xFFFEF2F2),
+      border: const Color(0xFFFECACA),
+      fg: const Color(0xFF991B1B),
+      icon: Icons.sensors_off,
+    );
+  }
+
+  static String _formatAge(Duration d) {
+    if (d.inSeconds < 60) return '${d.inSeconds}s';
+    if (d.inMinutes < 60) return '${d.inMinutes}m';
+    if (d.inHours < 48) return '${d.inHours}h';
+    return '${d.inDays}d';
+  }
+
+  Widget _banner({
+    required String text,
+    required Color bg,
+    required Color border,
+    required Color fg,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: fg),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: fg,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

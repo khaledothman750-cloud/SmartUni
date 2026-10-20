@@ -59,6 +59,21 @@ void setup() {
   spotRight.begin();
 
   wifi.connect();
+
+  // Wall-clock time so Firebase `updated_at` is real (for ESP online indicator).
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.print("Waiting for NTP");
+  for (int i = 0; i < 40 && time(nullptr) < 1700000000; i++) {
+    delay(250);
+    Serial.print(".");
+  }
+  Serial.println();
+  if (time(nullptr) < 1700000000) {
+    Serial.println("WARNING: NTP not synced — app cannot detect ESP online status.");
+  } else {
+    Serial.printf("NTP OK: %ld\n", (long)time(nullptr));
+  }
+
   db.begin(API_KEY, DATABASE_URL, USER_EMAIL, USER_PASSWORD);
 
   randomSeed(analogRead(0));
