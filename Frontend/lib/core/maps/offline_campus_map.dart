@@ -22,7 +22,7 @@ class CampusMapDefaults {
   CampusMapDefaults._();
 
   /// Plaza / campus core — tight enough that the first view is the university, not the city.
-  static const LatLng center = LatLng(34.41845, 35.83540);
+  static const LatLng center = LatLng(34.418309, 35.837060);
   static const double zoom = 16.8;
   static const double minZoom = 15.5;
   static const double maxZoom = 17;

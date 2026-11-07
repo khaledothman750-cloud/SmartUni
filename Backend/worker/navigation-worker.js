@@ -456,11 +456,11 @@ async function getEdgeColumnMap(db) {
  */
 async function seedWalkwayGraph(db) {
   const buildings = [
-    ["CITYU", 34.41845, 35.8354],
-    ["ADMIN", 34.41755, 35.8351],
-    ["LIB", 34.4185, 35.8364],
-    ["KABA", 34.4182, 35.8343],
-    ["SHOUMAN", 34.4195, 35.8355],
+    ["CITYU", 34.418309, 35.83706],
+    ["ADMIN", 34.4183793754257, 35.83619852075846],
+    ["LIB", 34.418622712441646, 35.835470367579084],
+    ["KABA", 34.41944873068435, 35.835349382076224],
+    ["SHOUMAN", 34.41819170558045, 35.83645294930101],
   ];
   for (const [code, lat, lng] of buildings) {
     await db

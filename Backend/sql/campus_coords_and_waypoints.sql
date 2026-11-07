@@ -23,11 +23,11 @@ ALTER TABLE locations ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;
 -- =============================================================================
 -- STEP 2 — Update building coordinates
 -- =============================================================================
-UPDATE locations SET latitude = 34.41845, longitude = 35.83540 WHERE code = 'CITYU';
-UPDATE locations SET latitude = 34.41755, longitude = 35.83510 WHERE code = 'ADMIN';
-UPDATE locations SET latitude = 34.41850, longitude = 35.83640 WHERE code = 'LIB';
-UPDATE locations SET latitude = 34.41820, longitude = 35.83430 WHERE code = 'KABA';
-UPDATE locations SET latitude = 34.41950, longitude = 35.83550 WHERE code = 'SHOUMAN';
+UPDATE locations SET latitude = 34.418309, longitude = 35.837060 WHERE code = 'CITYU';
+UPDATE locations SET latitude = 34.4183793754257, longitude = 35.83619852075846 WHERE code = 'ADMIN';
+UPDATE locations SET latitude = 34.418622712441646, longitude = 35.835470367579084 WHERE code = 'LIB';
+UPDATE locations SET latitude = 34.41944873068435, longitude = 35.835349382076224 WHERE code = 'KABA';
+UPDATE locations SET latitude = 34.41819170558045, longitude = 35.83645294930101 WHERE code = 'SHOUMAN';
 
 -- If STEP 1 succeeded, you may also set types:
 -- UPDATE locations SET type = 'campus',   is_active = 1 WHERE code = 'CITYU';
