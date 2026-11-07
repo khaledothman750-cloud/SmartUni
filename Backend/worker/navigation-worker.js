@@ -78,6 +78,11 @@ export default {
         return cors(await findRoute(env.DB, from, to));
       }
 
+      // Rebuild walkway ring + edges (blue line follows campus roads)
+      if (method === "POST" && path === "/api/admin/seed-walkways") {
+        return cors(await seedWalkwayGraph(env.DB));
+      }
+
       // -------- Health (still requires API key) --------
       if (method === "GET" && (path === "/" || path === "/api/health")) {
         return json({
@@ -91,6 +96,7 @@ export default {
             "POST /api/locations",
             "PUT /api/locations/:id",
             "DELETE /api/locations/:id",
+            "POST /api/admin/seed-walkways",
           ],
         });
       }
@@ -169,12 +175,15 @@ async function readJson(request) {
 // =============================================================================
 
 function mapLocation(row) {
+  const code = row.code ?? null;
+  // Prefer real D1 id; if missing, expose code so clients can still key the node.
+  const id = row.id !== undefined && row.id !== null ? row.id : code;
   return {
-    id: row.id,
-    code: row.code,
+    id,
+    code,
     name: row.name,
     description: row.description ?? null,
-    type: row.type ?? inferType(row.code),
+    type: inferType(code) === "waypoint" ? "waypoint" : (row.type ?? inferType(code)),
     floor: row.floor ?? 0,
     latitude: row.latitude ?? null,
     longitude: row.longitude ?? null,
@@ -271,13 +280,20 @@ async function createLocation(db, body) {
 
   sql += ") VALUES (" + vals.map(() => "?").join(", ") + ")";
 
-  const insert = await db.prepare(sql).bind(...vals).run();
-  const id = insert.meta?.last_row_id;
+  await db.prepare(sql).bind(...vals).run();
 
+  // D1 last_row_id can be unreliable — reload by unique code.
   const row = await db
-    .prepare("SELECT * FROM locations WHERE id = ?")
-    .bind(id)
+    .prepare("SELECT * FROM locations WHERE UPPER(code) = UPPER(?)")
+    .bind(code)
     .first();
+
+  if (!row) {
+    return json(
+      { success: false, error: "Insert succeeded but location could not be reloaded" },
+      500
+    );
+  }
 
   return json({ success: true, data: mapLocation(row) }, 201);
 }
@@ -432,6 +448,151 @@ async function getEdgeColumnMap(db) {
     distance,
     bidirectional: bidirectional || "is_bidirectional",
   };
+}
+
+/**
+ * Places waypoints on the outer campus walkways and rebuilds edges as a ring
+ * so Dijkstra routes follow white roads instead of cutting across the plaza.
+ */
+async function seedWalkwayGraph(db) {
+  const buildings = [
+    ["CITYU", 34.41845, 35.8354],
+    ["ADMIN", 34.41755, 35.8351],
+    ["LIB", 34.4185, 35.8364],
+    ["KABA", 34.4182, 35.8343],
+    ["SHOUMAN", 34.4195, 35.8355],
+  ];
+  for (const [code, lat, lng] of buildings) {
+    await db
+      .prepare(
+        "UPDATE locations SET latitude = ?, longitude = ? WHERE UPPER(code) = ?"
+      )
+      .bind(lat, lng, code)
+      .run();
+  }
+
+  const waypoints = [
+    ["WP_S", "Path · South", "South walkway", 34.41765, 35.83535],
+    ["WP_SE", "Path · South-East", "SE corner walkway", 34.41785, 35.8361],
+    ["WP_E", "Path · East", "East road by library", 34.41845, 35.83655],
+    ["WP_NE", "Path · North-East", "NE corner walkway", 34.41915, 35.83615],
+    ["WP_N", "Path · North", "North walkway", 34.41935, 35.83545],
+    ["WP_NW", "Path · North-West", "NW corner walkway", 34.4191, 35.8347],
+    ["WP_W", "Path · West", "West road by KABA", 34.4184, 35.83435],
+    ["WP_SW", "Path · South-West", "SW corner walkway", 34.41775, 35.83475],
+  ];
+
+  const hasType = await tableHasColumn(db, "locations", "type");
+  const hasActive = await tableHasColumn(db, "locations", "is_active");
+
+  for (const [code, name, description, lat, lng] of waypoints) {
+    const existing = await db
+      .prepare("SELECT id FROM locations WHERE UPPER(code) = ?")
+      .bind(code)
+      .first();
+
+    // Broken rows (null id) cannot be updated reliably — replace them.
+    if (existing && (existing.id === null || existing.id === undefined)) {
+      await db
+        .prepare("DELETE FROM locations WHERE UPPER(code) = ?")
+        .bind(code)
+        .run();
+    }
+
+    const stillThere = await db
+      .prepare("SELECT id FROM locations WHERE UPPER(code) = ?")
+      .bind(code)
+      .first();
+
+    if (stillThere) {
+      let sql =
+        "UPDATE locations SET name = ?, description = ?, latitude = ?, longitude = ?";
+      const vals = [name, description, lat, lng];
+      if (hasType) {
+        sql += ", type = ?";
+        vals.push("waypoint");
+      }
+      if (hasActive) {
+        sql += ", is_active = ?";
+        vals.push(1);
+      }
+      sql += " WHERE UPPER(code) = ?";
+      vals.push(code);
+      await db.prepare(sql).bind(...vals).run();
+    } else {
+      let sql =
+        "INSERT INTO locations (code, name, description, latitude, longitude";
+      const vals = [code, name, description, lat, lng];
+      if (hasType) {
+        sql += ", type";
+        vals.push("waypoint");
+      }
+      if (hasActive) {
+        sql += ", is_active";
+        vals.push(1);
+      }
+      sql += ") VALUES (" + vals.map(() => "?").join(", ") + ")";
+      await db.prepare(sql).bind(...vals).run();
+    }
+  }
+
+  const edgesExist = await tableExists(db, "location_edges");
+  if (!edgesExist) {
+    return json(
+      {
+        success: false,
+        error: "location_edges table missing — create it first",
+      },
+      503
+    );
+  }
+
+  await db.prepare("DELETE FROM location_edges").run();
+
+  const link = async (fromCode, toCode, meters) => {
+    await db
+      .prepare(
+        `INSERT INTO location_edges (from_location_id, to_location_id, distance_meters, path_type, is_bidirectional)
+         SELECT a.id, b.id, ?, 'walk', 1
+         FROM locations a JOIN locations b ON a.code = ? AND b.code = ?`
+      )
+      .bind(meters, fromCode, toCode)
+      .run();
+  };
+
+  // Outer walkway ring
+  await link("WP_S", "WP_SE", 72);
+  await link("WP_SE", "WP_E", 78);
+  await link("WP_E", "WP_NE", 86);
+  await link("WP_NE", "WP_N", 68);
+  await link("WP_N", "WP_NW", 74);
+  await link("WP_NW", "WP_W", 84);
+  await link("WP_W", "WP_SW", 81);
+  await link("WP_SW", "WP_S", 56);
+
+  // Buildings ↔ nearest walkway
+  await link("ADMIN", "WP_S", 25);
+  await link("LIB", "WP_E", 15);
+  await link("SHOUMAN", "WP_N", 17);
+  await link("KABA", "WP_W", 23);
+  await link("CITYU", "WP_S", 89);
+  await link("CITYU", "WP_E", 105);
+  await link("CITYU", "WP_N", 100);
+  await link("CITYU", "WP_W", 96);
+
+  const edgeCount = await db
+    .prepare("SELECT COUNT(*) AS n FROM location_edges")
+    .first();
+  const wpCount = await db
+    .prepare("SELECT COUNT(*) AS n FROM locations WHERE code LIKE 'WP_%'")
+    .first();
+
+  return json({
+    success: true,
+    message: "Walkway ring seeded — routes follow campus roads",
+    waypoints: wpCount?.n ?? 0,
+    edges: edgeCount?.n ?? 0,
+  });
 }
 
 async function resolveLocationId(db, value) {

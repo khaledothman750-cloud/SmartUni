@@ -15,6 +15,7 @@ import '../../../core/models/campus_location.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../data/remote/worker_api_client.dart';
 import '../../../data/repositories/repository_hub.dart';
+import '../campus_walk_router.dart';
 
 /// Shared Navigation UI — Cloudflare route + offline/online campus map.
 class NavigationScreen extends StatefulWidget {
@@ -31,6 +32,8 @@ class _NavigationScreenState extends State<NavigationScreen> {
   String? _fromId;
   String? _toId;
   NavigationRoutePreview? _route;
+  /// Blue line: follows real OSM footpaths/roads (the white lines on the map).
+  List<LatLng> _walkLine = const [];
   bool _loading = true;
   bool _routing = false;
   bool _mapReady = false;
@@ -57,6 +60,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
     }
     if (!mounted) return;
     setState(() => _mapReady = true);
+    // Map already opens on the campus via MapOptions.initialCenter/initialZoom.
     await _load();
   }
 
@@ -111,24 +115,28 @@ class _NavigationScreenState extends State<NavigationScreen> {
     return LatLng(l.latitude!, l.longitude!);
   }
 
+  /// Start + destination only (blue line shows the walk in between).
   List<LatLng> get _routePoints {
     final route = _route;
-    if (route == null) return const [];
-    return route.path
-        .map(_latLngOf)
-        .whereType<LatLng>()
-        .toList(growable: false);
+    if (route == null || route.path.isEmpty) return const [];
+    final ends = [route.path.first, route.path.last];
+    return ends.map(_latLngOf).whereType<LatLng>().toList(growable: false);
   }
 
   void _fitRouteOnMap(List<LatLng> points) {
     if (points.isEmpty) return;
     if (points.length == 1) {
-      _mapController.move(points.first, 16);
+      _mapController.move(points.first, CampusMapDefaults.zoom);
       return;
     }
     final bounds = LatLngBounds.fromPoints(points);
     _mapController.fitCamera(
-      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)),
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.all(56),
+        maxZoom: CampusMapDefaults.maxZoom,
+        minZoom: CampusMapDefaults.minZoom,
+      ),
     );
   }
 
@@ -153,11 +161,38 @@ class _NavigationScreenState extends State<NavigationScreen> {
         toId: _toId!,
       );
       if (!mounted) return;
-      setState(() => _route = route);
-      final points = route.path
-          .map(_latLngOf)
-          .whereType<LatLng>()
-          .toList(growable: false);
+
+      // Only the two real places matter; waypoints are not drawn.
+      final fromLoc = _locations.firstWhere((l) => l.id == _fromId);
+      final toLoc = _locations.firstWhere((l) => l.id == _toId);
+      final a = _latLngOf(fromLoc);
+      final b = _latLngOf(toLoc);
+
+      var shown = route;
+      var line = <LatLng>[];
+      if (a != null && b != null) {
+        try {
+          final walk = await CampusWalkRouter.route(a, b);
+          if (walk != null) {
+            line = walk.points;
+            shown = route.copyWith(totalDistanceMeters: walk.meters);
+          }
+        } catch (e) {
+          debugPrint('Walk router failed (campus_paths.json missing?): $e');
+        }
+      }
+      if (line.isEmpty) {
+        line = route.path
+            .map(_latLngOf)
+            .whereType<LatLng>()
+            .toList(growable: false);
+      }
+      if (!mounted) return;
+      setState(() {
+        _route = shown;
+        _walkLine = line;
+      });
+      final points = line;
       if (points.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -219,16 +254,19 @@ class _NavigationScreenState extends State<NavigationScreen> {
           options: MapOptions(
             initialCenter: CampusMapDefaults.center,
             initialZoom: CampusMapDefaults.zoom,
-            minZoom: 13,
-            maxZoom: 17,
+            minZoom: CampusMapDefaults.minZoom,
+            maxZoom: CampusMapDefaults.maxZoom,
+            cameraConstraint: CameraConstraint.containCenter(
+              bounds: CampusMapDefaults.bounds,
+            ),
           ),
           children: [
             OfflineCampusMapSource.buildTileLayer(),
-            if (points.length >= 2)
+            if (_walkLine.length >= 2)
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: points,
+                    points: _walkLine,
                     strokeWidth: 5,
                     color: AppColors.blue.withValues(alpha: 0.9),
                   ),
@@ -365,7 +403,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        ..._route!.path.asMap().entries.map((entry) {
+                        ..._route!.path
+                            .where((l) => !l.isWaypoint)
+                            .toList()
+                            .asMap()
+                            .entries
+                            .map((entry) {
                           final i = entry.key;
                           final step = entry.value;
                           return Card(

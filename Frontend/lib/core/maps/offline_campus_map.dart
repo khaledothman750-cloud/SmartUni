@@ -21,8 +21,18 @@ import 'package:path_provider/path_provider.dart';
 class CampusMapDefaults {
   CampusMapDefaults._();
 
-  static const LatLng center = LatLng(34.418, 35.836);
-  static const double zoom = 15.5;
+  /// Plaza / campus core — tight enough that the first view is the university, not the city.
+  static const LatLng center = LatLng(34.41845, 35.83540);
+  static const double zoom = 16.8;
+  static const double minZoom = 15.5;
+  static const double maxZoom = 17;
+
+  /// Approx OSM footprint of Al Manar / CityU Abi Samra (keeps pan/zoom on campus).
+  static final LatLngBounds bounds = LatLngBounds(
+    const LatLng(34.4169, 35.8331),
+    const LatLng(34.4200, 35.8377),
+  );
+
   static const String assetPath = 'assets/maps/cityu_abisamra.mbtiles';
 }
 
@@ -59,15 +69,15 @@ class OfflineCampusMapSource {
       return TileLayer(
         urlTemplate: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
         userAgentPackageName: 'com.smartuni.cityu',
-        maxZoom: 17,
-        minZoom: 13,
+        maxZoom: CampusMapDefaults.maxZoom,
+        minZoom: CampusMapDefaults.minZoom,
         errorTileCallback: (tile, error, stackTrace) {},
       );
     }
     return TileLayer(
       tileProvider: _MbtilesRasterTileProvider(_mbtiles!),
-      maxZoom: 17,
-      minZoom: 14,
+      maxZoom: CampusMapDefaults.maxZoom,
+      minZoom: CampusMapDefaults.minZoom,
       errorTileCallback: (tile, error, stackTrace) {},
     );
   }

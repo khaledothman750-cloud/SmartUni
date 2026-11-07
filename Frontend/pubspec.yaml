@@ -88,6 +88,7 @@ flutter:
       - assets/images/cityu_logo.png
       - assets/images/smartuni_app_icon.png
       - assets/maps/cityu_abisamra.mbtiles
+      - assets/maps/campus_paths.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

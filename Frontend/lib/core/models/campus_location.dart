@@ -41,12 +41,21 @@ class CampusLocation {
 
   /// Maps Navigation Worker `mapLocation` JSON → app model.
   factory CampusLocation.fromWorkerJson(Map<String, dynamic> json) {
+    final code = (json['code'] as String? ?? '').trim();
+    final rawId = json['id'];
+    // Some D1 rows were inserted without a usable id — fall back to code.
+    final id = (rawId == null || rawId.toString() == 'null' || rawId.toString().isEmpty)
+        ? (code.isNotEmpty ? code : 'unknown')
+        : rawId.toString();
+    final inferredType = code.toUpperCase().startsWith('WP_')
+        ? 'waypoint'
+        : (json['type'] as String? ?? 'building');
     return CampusLocation(
-      id: json['id'].toString(),
+      id: id,
       name: (json['name'] as String? ?? '').trim(),
-      type: (json['type'] as String? ?? 'building').trim(),
+      type: inferredType.trim(),
       floor: (json['floor'] as num?)?.toInt() ?? 0,
-      building: json['code'] as String?,
+      building: code.isEmpty ? null : code,
       description: json['description'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
@@ -62,4 +71,15 @@ class NavigationRoutePreview {
     required this.path,
     required this.totalDistanceMeters,
   });
+
+  /// Same route with a new distance (e.g. after snapping to real footpaths).
+  NavigationRoutePreview copyWith({
+    List<CampusLocation>? path,
+    double? totalDistanceMeters,
+  }) {
+    return NavigationRoutePreview(
+      path: path ?? this.path,
+      totalDistanceMeters: totalDistanceMeters ?? this.totalDistanceMeters,
+    );
+  }
 }

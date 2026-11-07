@@ -55,6 +55,7 @@ class CloudflareNavigationRepository implements NavigationRepository {
     required String toId,
   }) async {
     _ensureKey();
+
     final json = await _client.get(
       '/api/navigation',
       query: {

@@ -52,3 +52,12 @@ Invoke-RestMethod -Uri "$base/api/navigation?from=2&to=4" -Headers $headers
 | POST | `/api/locations` |
 | PUT | `/api/locations/:id` |
 | DELETE | `/api/locations/:id` |
+| POST | `/api/admin/seed-walkways` |
+
+After deploying the Worker, seed the walkway ring once:
+
+```powershell
+Invoke-RestMethod -Method POST -Uri "$base/api/admin/seed-walkways" -Headers $headers
+```
+
+Or paste `Backend/sql/campus_walkways_apply_now.sql` into D1 Console (`cityu`).
